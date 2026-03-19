@@ -10,7 +10,9 @@ const VerifyOtp = () => {
     const { handleVerifyOtp, handleResendOtp } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
-    const email = location.state?.email
+    const [manualEmail, setManualEmail] = useState('')
+    
+    const email = location.state?.email || manualEmail
 
     useEffect(() => {
         let interval = null
@@ -43,6 +45,11 @@ const VerifyOtp = () => {
             return
         }
 
+        if (!email) {
+            setStatus({ type: 'error', message: 'Please provide an email address' })
+            return
+        }
+
         try {
             await handleVerifyOtp({ email, otp: otpCode })
             setStatus({ type: 'success', message: 'Email verified successfully! Redirecting to login...' })
@@ -54,6 +61,11 @@ const VerifyOtp = () => {
 
     const handleResend = async () => {
         if (timer > 0 || isResending) return
+
+        if (!email) {
+            setStatus({ type: 'error', message: 'Email is required to resend OTP' })
+            return
+        }
 
         setIsResending(true)
         try {
@@ -67,30 +79,14 @@ const VerifyOtp = () => {
         }
     }
 
-    if (!email) {
-        return (
-            <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-100 px-4">
-                <div className="text-center p-8 bg-zinc-900/50 border border-zinc-800 rounded-2xl backdrop-blur">
-                    <h2 className="text-xl font-semibold mb-4 text-red-400">Invalid Session</h2>
-                    <p className="mb-6">Please register again to receive a new OTP.</p>
-                    <button 
-                        onClick={() => navigate('/register')}
-                        className="px-6 py-2 bg-[#31b8c6] text-zinc-950 font-semibold rounded-lg hover:bg-[#45c7d4] transition"
-                    >
-                        Go to Register
-                    </button>
-                </div>
-            </div>
-        )
-    }
-
     return (
         <section className="min-h-screen bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8 flex items-center justify-center">
             <div className="w-full max-w-md rounded-2xl border border-[#31b8c6]/40 bg-zinc-900/70 p-8 shadow-2xl shadow-black/50 backdrop-blur">
-                <h1 className="text-3xl font-bold text-[#31b8c6] text-center">Verify OTP</h1>
+                <h1 className="text-3xl font-bold text-[#31b8c6] text-center">Verify Email</h1>
                 <p className="mt-4 text-sm text-zinc-300 text-center">
-                    We've sent a 6-digit code to <span className="text-[#31b8c6] font-medium">{email}</span>.
-                    Enter it below to verify your account.
+                    {location.state?.email 
+                        ? `We've sent a 6-digit code to ${location.state.email}` 
+                        : "Enter your email and the 6-digit code we sent you."}
                 </p>
 
                 {status.message && (
@@ -101,19 +97,41 @@ const VerifyOtp = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="mt-8 space-y-8">
-                    <div className="flex justify-between gap-2">
-                        {otp.map((data, index) => (
+                <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                    {!location.state?.email && (
+                        <div>
+                            <label htmlFor="email" className="mb-2 block text-sm font-medium text-zinc-200">
+                                Email Address
+                            </label>
                             <input
-                                key={index}
-                                type="text"
-                                maxLength="1"
-                                value={data}
-                                onChange={e => handleChange(e.target, index)}
-                                onFocus={e => e.target.select()}
-                                className="w-12 h-14 text-center text-xl font-bold rounded-lg border border-zinc-700 bg-zinc-950/80 outline-none transition focus:border-[#31b8c6] focus:ring-2 focus:ring-[#31b8c6]/20"
+                                id="email"
+                                type="email"
+                                value={manualEmail}
+                                onChange={(e) => setManualEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                required
+                                className="w-full rounded-lg border border-zinc-700 bg-zinc-950/80 px-4 py-3 text-zinc-100 outline-none ring-0 transition focus:border-[#31b8c6] focus:ring-2 focus:ring-[#31b8c6]/20"
                             />
-                        ))}
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-zinc-200">
+                            Verification Code
+                        </label>
+                        <div className="flex justify-between gap-2">
+                            {otp.map((data, index) => (
+                                <input
+                                    key={index}
+                                    type="text"
+                                    maxLength="1"
+                                    value={data}
+                                    onChange={e => handleChange(e.target, index)}
+                                    onFocus={e => e.target.select()}
+                                    className="w-12 h-14 text-center text-xl font-bold rounded-lg border border-zinc-700 bg-zinc-950/80 outline-none transition focus:border-[#31b8c6] focus:ring-2 focus:ring-[#31b8c6]/20"
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     <button
@@ -138,10 +156,18 @@ const VerifyOtp = () => {
                         {isResending ? 'Resending...' : timer > 0 ? `Resend in ${timer}s` : 'Resend'}
                     </button>
                 </p>
+                
+                <div className="mt-6 text-center text-sm">
+                    <button 
+                        onClick={() => navigate('/login')}
+                        className="text-zinc-400 hover:text-[#31b8c6] transition"
+                    >
+                        Back to Login
+                    </button>
+                </div>
             </div>
         </section>
     )
 }
 
 export default VerifyOtp
-

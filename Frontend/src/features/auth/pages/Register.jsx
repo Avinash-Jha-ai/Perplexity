@@ -108,6 +108,12 @@ const Register = () => {
               Login
             </Link>
           </p>
+
+          <div className="mt-4 text-center">
+            <Link to="/verify-otp" className="text-xs text-zinc-500 hover:text-[#31b8c6] transition underline-offset-4 hover:underline">
+              Already have an OTP? Verify here
+            </Link>
+          </div>
         </div>
       </div>
     </section>

@@ -16,8 +16,11 @@ const Login = () => {
 
     const navigate = useNavigate()
 
+    const [message, setMessage] = useState('')
+
     const submitForm = async (event) => {
         event.preventDefault()
+        setMessage('')
 
         const payload = {
             email,
@@ -28,6 +31,8 @@ const Login = () => {
             await handleLogin(payload)
             navigate("/")
         } catch (err) {
+            const errMsg = err.response?.data?.message || "Login failed"
+            setMessage(errMsg)
             console.error("Login failed:", err)
         }
     }
@@ -46,6 +51,22 @@ const Login = () => {
                     <p className="mt-2 text-sm text-zinc-300">
                         Sign in with your email and password.
                     </p>
+
+                    {message && (
+                        <div className="mt-6 rounded-lg bg-red-400/10 p-4 text-center text-sm font-medium text-red-400">
+                            {message}
+                            {message.toLowerCase().includes("verify") && (
+                                <div className="mt-2">
+                                    <button 
+                                        onClick={() => navigate('/verify-otp', { state: { email } })}
+                                        className="text-[#31b8c6] hover:underline"
+                                    >
+                                        Click here to verify now
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <form onSubmit={submitForm} className="mt-8 space-y-5">
                         <div>
@@ -94,6 +115,12 @@ const Login = () => {
                             Register
                         </Link>
                     </p>
+
+                    <div className="mt-4 text-center">
+                        <Link to="/verify-otp" className="text-xs text-zinc-500 hover:text-[#31b8c6] transition underline-offset-4 hover:underline">
+                            Didn't verify your email yet? Click here
+                        </Link>
+                    </div>
                 </div>
             </div>
         </section>
