@@ -31,3 +31,8 @@ export async function logout() {
     const response = await api.get("/api/auth/logout")
     return response.data
 }
+
+export async function resendOtp({ email }) {
+    const response = await api.post("/api/auth/resend-otp", { email })
+    return response.data
+}

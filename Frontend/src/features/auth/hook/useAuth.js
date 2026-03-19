@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import { register, verifyOtp, login, getMe, logout } from "../service/auth.api";
+import { register, verifyOtp, login, getMe, logout, resendOtp } from "../service/auth.api";
 import { setUser, setLoading, setError } from "../auth.slice";
 import { resetChat } from "../../chat/chat.slice";
 
@@ -29,6 +29,19 @@ export function useAuth() {
             return data
         } catch (error) {
             dispatch(setError(error.response?.data?.message || "OTP verification failed"))
+            throw error
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+
+    async function handleResendOtp({ email }) {
+        try {
+            dispatch(setLoading(true))
+            const data = await resendOtp({ email })
+            return data
+        } catch (error) {
+            dispatch(setError(error.response?.data?.message || "Failed to resend OTP"))
             throw error
         } finally {
             dispatch(setLoading(false))
@@ -77,6 +90,7 @@ export function useAuth() {
     return {
         handleRegister,
         handleVerifyOtp,
+        handleResendOtp,
         handleLogin,
         handleGetMe,
         handleLogout,

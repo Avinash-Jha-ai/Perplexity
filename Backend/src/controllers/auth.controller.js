@@ -18,12 +18,53 @@ export async function register(req, res) {
     })
 
     if (isUserAlreadyExists) {
-        return res.status(400).json({
-            message: "User with this email or username already exists",
-            success: false,
-            err: "User already exists"
+        if (isUserAlreadyExists.verified) {
+            return res.status(400).json({
+                message: "User with this email or username already exists",
+                success: false,
+                err: "User already exists"
+            })
+        }
+        
+        // If user exists but is NOT verified, we'll update the OTP and proceed
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        
+        isUserAlreadyExists.otp = otp;
+        isUserAlreadyExists.otpExpires = otpExpires;
+        if (password) isUserAlreadyExists.password = password; // Update password too in case they changed it
+        
+        await isUserAlreadyExists.save();
+        
+        await sendEmail({
+            to: email,
+            subject: "Verify your Perplexity account!",
+            html: `
+                <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                    <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                        <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
+                        <p style="font-size: 16px; color: #333;">Hi ${isUserAlreadyExists.username},</p>
+                        <p style="font-size: 16px; color: #333;">Please use the following OTP to verify your account:</p>
+                        <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                            ${otp}
+                        </div>
+                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                    </div>
+                </div>
+            `
         })
+
+        return res.status(200).json({
+            message: "User already registered. A new verification code has been sent.",
+            success: true,
+            user: {
+                id: isUserAlreadyExists._id,
+                username: isUserAlreadyExists.username,
+                email: isUserAlreadyExists.email
+            }
+        });
     }
+
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -217,6 +258,76 @@ export async function verifyOtp(req, res) {
         })
     }
 }
+
+/**
+ * @desc Resend OTP to user's email
+ * @route POST /api/auth/resend-otp
+ * @access Public
+ * @body { email }
+ */
+export async function resendOtp(req, res) {
+    const { email } = req.body;
+
+    try {
+        const user = await userModel.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            })
+        }
+
+        if (user.verified) {
+            return res.status(400).json({
+                message: "User is already verified",
+                success: false
+            })
+        }
+
+        // Generate new OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        user.otp = otp;
+        user.otpExpires = otpExpires;
+
+        await user.save();
+
+        await sendEmail({
+            to: email,
+            subject: "New OTP for Perplexity Verification",
+            html: `
+                <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                    <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                        <h1 style="color: #31b8c6; text-align: center;">New Verification Code</h1>
+                        <p style="font-size: 16px; color: #333;">Hi ${user.username},</p>
+                        <p style="font-size: 16px; color: #333;">Your new OTP (One Time Password) to verify your account is:</p>
+                        <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                            ${otp}
+                        </div>
+                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="font-size: 14px; color: #999; text-align: center;">If you did not request this code, please ignore this email.</p>
+                    </div>
+                </div>
+            `
+        })
+
+        res.status(200).json({
+            message: "New OTP sent successfully",
+            success: true
+        })
+
+    } catch (err) {
+        res.status(500).json({
+            message: "Internal server error",
+            success: false,
+            err: err.message
+        })
+    }
+}
+
 
 /**
  * @desc Logout user and clear cookie

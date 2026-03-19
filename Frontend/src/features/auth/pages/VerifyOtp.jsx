@@ -1,14 +1,28 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import { useAuth } from '../hook/useAuth'
 
 const VerifyOtp = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', ''])
     const [status, setStatus] = useState({ type: '', message: '' })
-    const { handleVerifyOtp } = useAuth()
+    const [timer, setTimer] = useState(60)
+    const [isResending, setIsResending] = useState(false)
+    const { handleVerifyOtp, handleResendOtp } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
     const email = location.state?.email
+
+    useEffect(() => {
+        let interval = null
+        if (timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev - 1)
+            }, 1000)
+        } else {
+            clearInterval(interval)
+        }
+        return () => clearInterval(interval)
+    }, [timer])
 
     const handleChange = (element, index) => {
         if (isNaN(element.value)) return false
@@ -35,6 +49,21 @@ const VerifyOtp = () => {
             setTimeout(() => navigate('/login'), 2000)
         } catch (err) {
             setStatus({ type: 'error', message: err.response?.data?.message || 'Verification failed' })
+        }
+    }
+
+    const handleResend = async () => {
+        if (timer > 0 || isResending) return
+
+        setIsResending(true)
+        try {
+            await handleResendOtp({ email })
+            setStatus({ type: 'success', message: 'A new OTP has been sent to your email.' })
+            setTimer(60) // Reset timer
+        } catch (err) {
+            setStatus({ type: 'error', message: err.response?.data?.message || 'Failed to resend OTP' })
+        } finally {
+            setIsResending(false)
         }
     }
 
@@ -97,8 +126,16 @@ const VerifyOtp = () => {
 
                 <p className="mt-8 text-center text-sm text-zinc-400">
                     Didn't receive the code?{' '}
-                    <button className="text-[#31b8c6] font-semibold hover:underline">
-                        Resend
+                    <button 
+                        onClick={handleResend}
+                        disabled={timer > 0 || isResending}
+                        className={`font-semibold transition ${
+                            timer > 0 || isResending 
+                                ? 'text-zinc-600 cursor-not-allowed' 
+                                : 'text-[#31b8c6] hover:underline'
+                        }`}
+                    >
+                        {isResending ? 'Resending...' : timer > 0 ? `Resend in ${timer}s` : 'Resend'}
                     </button>
                 </p>
             </div>
@@ -107,3 +144,4 @@ const VerifyOtp = () => {
 }
 
 export default VerifyOtp
+
