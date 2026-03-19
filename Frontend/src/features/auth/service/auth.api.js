@@ -12,6 +12,11 @@ export async function register({ email, username, password }) {
     return response.data
 }
 
+export async function verifyOtp({ email, otp }) {
+    const response = await api.post("/api/auth/verify-otp", { email, otp })
+    return response.data
+}
+
 export async function login({ email, password }) {
     const response = await api.post("/api/auth/login", { email, password })
     return response.data

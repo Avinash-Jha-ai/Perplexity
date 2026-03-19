@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../hook/useAuth'
 
 const Register = () => {
@@ -9,6 +9,7 @@ const Register = () => {
   const [message, setMessage] = useState('')
 
   const { handleRegister } = useAuth()
+  const navigate = useNavigate()
 
   const submitForm = async (event) => {
     event.preventDefault()
@@ -21,9 +22,9 @@ const Register = () => {
 
     try {
       await handleRegister(payload)
-      setMessage("Registration successful! Please check your email to verify your account.")
+      navigate('/verify-otp', { state: { email } })
     } catch (err) {
-      setMessage("Registration failed. Please try again.")
+      setMessage(err.response?.data?.message || "Registration failed. Please try again.")
     }
   }
 

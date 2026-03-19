@@ -25,22 +25,34 @@ export async function register(req, res) {
         })
     }
 
-    const user = await userModel.create({ username, email, password })
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const emailVerificationToken = jwt.sign({
-        email: user.email,
-    }, process.env.JWT_SECRET)
+    const user = await userModel.create({
+        username,
+        email,
+        password,
+        otp,
+        otpExpires
+    })
 
     await sendEmail({
         to: email,
-        subject: "Welcome to Perplexity!",
+        subject: "Welcome to Perplexity - Verify your account!",
         html: `
-                <p>Hi ${username},</p>
-                <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
-                <p>Please verify your email address by clicking the link below:</p>
-                <a href="${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
-                <p>If you did not create an account, please ignore this email.</p>
-                <p>Best regards,<br>The Perplexity Team</p>
+                <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                    <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                        <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
+                        <p style="font-size: 16px; color: #333;">Hi ${username},</p>
+                        <p style="font-size: 16px; color: #333;">Welcome to <strong>Perplexity</strong>! Please use the following OTP (One Time Password) to verify your account:</p>
+                        <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                            ${otp}
+                        </div>
+                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="font-size: 14px; color: #999; text-align: center;">If you did not create an account, please ignore this email.</p>
+                    </div>
+                </div>
         `
     })
 
@@ -147,45 +159,59 @@ export async function getMe(req, res) {
 
 
 /**
- * @desc Verify user's email address
- * @route GET /api/auth/verify-email
+ * @desc Verify user's email address using OTP
+ * @route POST /api/auth/verify-otp
  * @access Public
- * @query { token }
+ * @body { email, otp }
  */
-export async function verifyEmail(req, res) {
-    const { token } = req.query;
+export async function verifyOtp(req, res) {
+    const { email, otp } = req.body;
 
     try {
-
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-
-        const user = await userModel.findOne({ email: decoded.email });
+        const user = await userModel.findOne({ email });
 
         if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            })
+        }
+
+        if (user.verified) {
             return res.status(400).json({
-                message: "Invalid token",
-                success: false,
-                err: "User not found"
+                message: "User is already verified",
+                success: false
+            })
+        }
+
+        if (user.otp !== otp) {
+            return res.status(400).json({
+                message: "Invalid OTP code",
+                success: false
+            })
+        }
+
+        if (user.otpExpires < Date.now()) {
+            return res.status(400).json({
+                message: "OTP code has expired",
+                success: false
             })
         }
 
         user.verified = true;
+        user.otp = undefined;
+        user.otpExpires = undefined;
 
         await user.save();
 
-        const html =
-            `
-        <h1>Email Verified Successfully!</h1>
-        <p>Your email has been verified. You can now log in to your account.</p>
-        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login">Go to Login</a>
-    `
+        res.status(200).json({
+            message: "Email verified successfully",
+            success: true
+        })
 
-        return res.send(html);
     } catch (err) {
-        return res.status(400).json({
-            message: "Invalid or expired token",
+        res.status(500).json({
+            message: "Internal server error",
             success: false,
             err: err.message
         })
