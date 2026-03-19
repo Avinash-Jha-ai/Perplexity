@@ -12,7 +12,10 @@ const VerifyOtp = () => {
     const location = useLocation()
     const [manualEmail, setManualEmail] = useState('')
     
-    const email = location.state?.email || manualEmail
+    // Read email from state or URL query parameters
+    const queryParams = new URLSearchParams(location.search)
+    const emailFromParams = queryParams.get('email')
+    const email = location.state?.email || emailFromParams || manualEmail
 
     useEffect(() => {
         let interval = null

@@ -48,7 +48,10 @@ export async function register(req, res) {
                         <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
                             ${otp}
                         </div>
-                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                        <p style="text-align: center; margin-top: 20px;">
+                            <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
+                        </p>
+                        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
                     </div>
                 </div>
             `
@@ -89,7 +92,10 @@ export async function register(req, res) {
                         <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
                             ${otp}
                         </div>
-                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                        <p style="text-align: center; margin-top: 20px;">
+                            <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
+                        </p>
+                        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
                         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                         <p style="font-size: 14px; color: #999; text-align: center;">If you did not create an account, please ignore this email.</p>
                     </div>
@@ -306,7 +312,10 @@ export async function resendOtp(req, res) {
                         <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
                             ${otp}
                         </div>
-                        <p style="font-size: 14px; color: #777; text-align: center;">This code will expire in 10 minutes.</p>
+                         <p style="text-align: center; margin-top: 20px;">
+                            <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
+                        </p>
+                        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
                         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                         <p style="font-size: 14px; color: #999; text-align: center;">If you did not request this code, please ignore this email.</p>
                     </div>
