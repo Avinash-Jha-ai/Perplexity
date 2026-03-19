@@ -36,3 +36,8 @@ export async function resendOtp({ email }) {
     const response = await api.post("/api/auth/resend-otp", { email })
     return response.data
 }
+
+export async function googleAuth({ credential }) {
+    const response = await api.post("/api/auth/google", { credential })
+    return response.data
+}

@@ -1,6 +1,9 @@
 import userModel from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../services/mail.service.js";
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 /**
@@ -10,111 +13,145 @@ import { sendEmail } from "../services/mail.service.js";
  * @body { username, email, password }
  */
 export async function register(req, res) {
+    try {
+        const { username, email, password } = req.body;
 
-    const { username, email, password } = req.body;
-
-    const isUserAlreadyExists = await userModel.findOne({
-        $or: [ { email }, { username } ]
-    })
-
-    if (isUserAlreadyExists) {
-        if (isUserAlreadyExists.verified) {
-            return res.status(400).json({
-                message: "User with this email or username already exists",
-                success: false,
-                err: "User already exists"
-            })
-        }
-        
-        // If user exists but is NOT verified, we'll update the OTP and proceed
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-        
-        isUserAlreadyExists.otp = otp;
-        isUserAlreadyExists.otpExpires = otpExpires;
-        if (password) isUserAlreadyExists.password = password; // Update password too in case they changed it
-        
-        await isUserAlreadyExists.save();
-        
-        await sendEmail({
-            to: email,
-            subject: "Verify your Perplexity account!",
-            html: `
-                <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
-                    <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                        <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
-                        <p style="font-size: 16px; color: #333;">Hi ${isUserAlreadyExists.username},</p>
-                        <p style="font-size: 16px; color: #333;">Please use the following OTP to verify your account:</p>
-                        <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                            ${otp}
-                        </div>
-                        <p style="text-align: center; margin-top: 20px;">
-                            <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
-                        </p>
-                        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
-                    </div>
-                </div>
-            `
+        const isUserAlreadyExists = await userModel.findOne({
+            $or: [ { email }, { username } ]
         })
 
-        return res.status(200).json({
-            message: "User already registered. A new verification code has been sent.",
+        if (isUserAlreadyExists) {
+            if (isUserAlreadyExists.verified) {
+                return res.status(400).json({
+                    message: "User with this email or username already exists",
+                    success: false,
+                    err: "User already exists"
+                })
+            }
+            
+            // If user exists but is NOT verified, we'll update the OTP and proceed
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            
+            isUserAlreadyExists.otp = otp;
+            isUserAlreadyExists.otpExpires = otpExpires;
+            if (password) isUserAlreadyExists.password = password; // Update password too in case they changed it
+            
+            await isUserAlreadyExists.save();
+            
+            try {
+                await sendEmail({
+                    to: email,
+                    subject: "Verify your Perplexity account!",
+                    html: `
+                        <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                            <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                                <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
+                                <p style="font-size: 16px; color: #333;">Hi ${isUserAlreadyExists.username},</p>
+                                <p style="font-size: 16px; color: #333;">Please use the following OTP to verify your account:</p>
+                                <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                                    ${otp}
+                                </div>
+                                <p style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
+                                </p>
+                                <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
+                            </div>
+                        </div>
+                    `
+                })
+            } catch (mailError) {
+                console.error("Failed to send verification email:", mailError.message);
+                // We'll still return success but notify that email failed
+                return res.status(200).json({
+                    message: "User registered, but verification email failed to send. Please try resending OTP.",
+                    success: true,
+                    user: {
+                        id: isUserAlreadyExists._id,
+                        username: isUserAlreadyExists.username,
+                        email: isUserAlreadyExists.email
+                    }
+                });
+            }
+
+            return res.status(200).json({
+                message: "User already registered. A new verification code has been sent.",
+                success: true,
+                user: {
+                    id: isUserAlreadyExists._id,
+                    username: isUserAlreadyExists.username,
+                    email: isUserAlreadyExists.email
+                }
+            });
+        }
+
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        const user = await userModel.create({
+            username,
+            email,
+            password,
+            otp,
+            otpExpires
+        })
+
+        try {
+            await sendEmail({
+                to: email,
+                subject: "Welcome to Perplexity - Verify your account!",
+                html: `
+                        <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                            <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                                <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
+                                <p style="font-size: 16px; color: #333;">Hi ${username},</p>
+                                <p style="font-size: 16px; color: #333;">Welcome to <strong>Perplexity</strong>! Please use the following OTP (One Time Password) to verify your account:</p>
+                                <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                                    ${otp}
+                                </div>
+                                <p style="text-align: center; margin-top: 20px;">
+                                    <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
+                                </p>
+                                <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
+                                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                                <p style="font-size: 14px; color: #999; text-align: center;">If you did not create an account, please ignore this email.</p>
+                            </div>
+                        </div>
+                `
+            })
+        } catch (mailError) {
+            console.error("Failed to send welcome email:", mailError.message);
+            // We'll still return success but notify that email failed
+            return res.status(201).json({
+                message: "User registered successfully, but verification email failed to send.",
+                success: true,
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    email: user.email
+                }
+            });
+        }
+
+        res.status(201).json({
+            message: "User registered successfully",
             success: true,
             user: {
-                id: isUserAlreadyExists._id,
-                username: isUserAlreadyExists.username,
-                email: isUserAlreadyExists.email
+                id: user._id,
+                username: user.username,
+                email: user.email
             }
         });
+
+    } catch (err) {
+        console.error("Registration overall failure:", err);
+        res.status(500).json({
+            message: "Internal server error during registration",
+            success: false,
+            err: err.message
+        });
     }
-
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    const user = await userModel.create({
-        username,
-        email,
-        password,
-        otp,
-        otpExpires
-    })
-
-    await sendEmail({
-        to: email,
-        subject: "Welcome to Perplexity - Verify your account!",
-        html: `
-                <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
-                    <div style="background-color: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                        <h1 style="color: #31b8c6; text-align: center;">Verify Your Account</h1>
-                        <p style="font-size: 16px; color: #333;">Hi ${username},</p>
-                        <p style="font-size: 16px; color: #333;">Welcome to <strong>Perplexity</strong>! Please use the following OTP (One Time Password) to verify your account:</p>
-                        <div style="background-color: #31b8c6; color: #ffffff; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                            ${otp}
-                        </div>
-                        <p style="text-align: center; margin-top: 20px;">
-                            <a href="${process.env.FRONTEND_URL}/verify-otp?email=${email}" style="background-color: #333; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Automatically</a>
-                        </p>
-                        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">This code will expire in 10 minutes.</p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                        <p style="font-size: 14px; color: #999; text-align: center;">If you did not create an account, please ignore this email.</p>
-                    </div>
-                </div>
-        `
-    })
-
-    res.status(201).json({
-        message: "User registered successfully",
-        success: true,
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
-        }
-    });
-
-
-
 }
 
 /**
@@ -334,6 +371,67 @@ export async function resendOtp(req, res) {
             success: false,
             err: err.message
         })
+    }
+}
+
+/**
+ * @desc Google Auth
+ * @route POST /api/auth/google
+ * @access Public
+ * @body { credential }
+ */
+export async function googleAuth(req, res) {
+    const { credential } = req.body;
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const { email, name, sub } = payload;
+
+        let user = await userModel.findOne({ email });
+
+        if (!user) {
+            // Create a new user if they don't exist
+            const randomPassword = Math.random().toString(36).slice(-10) + "Aa1!";
+            user = await userModel.create({
+                username: name.replace(/\s+/g, '_').toLowerCase() + "_" + Math.floor(Math.random() * 10000),
+                email,
+                password: randomPassword,
+                verified: true, // Google already verified the email
+            });
+        }
+
+        const token = jwt.sign({
+            id: user._id,
+            username: user.username,
+        }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.status(200).json({
+            message: "Login successful",
+            success: true,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        });
+
+    } catch (err) {
+        console.error("Google auth error:", err);
+        res.status(500).json({
+            message: "Google authentication failed",
+            success: false,
+            err: err.message
+        });
     }
 }
 

@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import { register, verifyOtp, login, getMe, logout, resendOtp } from "../service/auth.api";
+import { register, verifyOtp, login, getMe, logout, resendOtp, googleAuth } from "../service/auth.api";
 import { setUser, setLoading, setError } from "../auth.slice";
 import { resetChat } from "../../chat/chat.slice";
 
@@ -62,6 +62,20 @@ export function useAuth() {
         }
     }
 
+    async function handleGoogleAuth({ credential }) {
+        try {
+            dispatch(setLoading(true))
+            const data = await googleAuth({ credential })
+            dispatch(setUser(data.user))
+            return data
+        } catch (err) {
+            dispatch(setError(err.response?.data?.message || "Google auth failed"))
+            throw err
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+
     async function handleGetMe() {
         try {
             dispatch(setLoading(true))
@@ -92,6 +106,7 @@ export function useAuth() {
         handleVerifyOtp,
         handleResendOtp,
         handleLogin,
+        handleGoogleAuth,
         handleGetMe,
         handleLogout,
     }

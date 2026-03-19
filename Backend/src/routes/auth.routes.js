@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, verifyOtp, login, getMe, logout, resendOtp } from "../controllers/auth.controller.js";
+import { register, verifyOtp, login, getMe, logout, resendOtp, googleAuth } from "../controllers/auth.controller.js";
 import { registerValidator, loginValidator } from "../validators/auth.validator.js";
 import { authUser } from "../middleware/auth.middleware.js";
 
@@ -22,6 +22,13 @@ authRouter.post("/register", registerValidator, register);
  */
 authRouter.post("/login", loginValidator, login)
 
+/**
+ * @route POST /api/auth/google
+ * @desc Google Auth
+ * @access Public
+ * @body { credential }
+ */
+authRouter.post('/google', googleAuth)
 
 
 /**

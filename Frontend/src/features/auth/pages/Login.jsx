@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../hook/useAuth'
 import { useSelector } from 'react-redux'
 import { Navigate } from 'react-router'
+import { GoogleLogin } from '@react-oauth/google'
 
 
 const Login = () => {
@@ -12,7 +13,7 @@ const Login = () => {
     const user = useSelector(state => state.auth.user)
     const loading = useSelector(state => state.auth.loading)
 
-    const { handleLogin } = useAuth()
+    const { handleLogin, handleGoogleAuth } = useAuth()
 
     const navigate = useNavigate()
 
@@ -36,6 +37,16 @@ const Login = () => {
             console.error("Login failed:", err)
         }
     }
+
+    const onGoogleSuccess = async (response) => {
+        try {
+            await handleGoogleAuth({ credential: response.credential });
+            navigate("/");
+        } catch (err) {
+            console.error("Google login failed", err);
+            setMessage("Google login failed. Please try again.");
+        }
+    };
 
     if(!loading && user){
         return <Navigate to="/" replace />
@@ -108,6 +119,31 @@ const Login = () => {
                             Login
                         </button>
                     </form>
+
+                    <div className="mt-6">
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-zinc-700"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm uppercase">
+                                <span className="bg-zinc-900 px-2 text-zinc-400">Or continue with</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-center">
+                            <GoogleLogin
+                                onSuccess={onGoogleSuccess}
+                                onError={() => {
+                                    console.log('Login Failed');
+                                    setMessage("Google login failed. Please try again.");
+                                }}
+                                theme="filled_blue"
+                                shape="pill"
+                                size="large"
+                                width="344"
+                            />
+                        </div>
+                    </div>
 
                     <p className="mt-6 text-center text-sm text-zinc-300">
                         Don&apos;t have an account?{' '}
